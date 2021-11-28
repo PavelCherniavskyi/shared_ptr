@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-#include <spdlog/spdlog.h>
 
 TEST(SharedPtr, SharedPtrTest)
 {
@@ -7,5 +6,4 @@ TEST(SharedPtr, SharedPtrTest)
   const int b = 5;
   EXPECT_EQ(a, b);
 
-  SPDLOG_INFO("Hello from SPDLOG: {}-{}", a, b);
 }

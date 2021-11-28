@@ -19,7 +19,6 @@ include(${CMAKE_BINARY_DIR}/conan.cmake)
 
 conan_cmake_configure(REQUIRES 
                       gtest/cci.20210126
-                      spdlog/1.9.2
                       GENERATORS 
                       cmake_find_package
 )
@@ -32,13 +31,7 @@ conan_cmake_install(PATH_OR_REFERENCE .
                     SETTINGS ${settings})
 
 find_package(GTest)
-find_package(spdlog)
 
 add_subdirectory(tests)
 
 add_executable(${PROJECT_NAME} main.cpp)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE
-  spdlog::spdlog
-)
-
