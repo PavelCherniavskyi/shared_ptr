@@ -33,5 +33,3 @@ conan_cmake_install(PATH_OR_REFERENCE .
 find_package(GTest)
 
 add_subdirectory(tests)
-
-add_executable(${PROJECT_NAME} main.cpp)

@@ -1,5 +1,4 @@
 add_executable(tests
-  gtest_main.cpp
   test_cases.cpp
 )
 
