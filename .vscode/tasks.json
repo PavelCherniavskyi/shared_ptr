@@ -11,6 +11,12 @@
       "problemMatcher": [
         "$gcc"
       ],
+      "presentation": {
+        "echo": true,
+        "showReuseMessage": true,
+        "clear": false,
+        "group": "build"
+    },
       "group": {
         "kind": "build",
         "isDefault": true
