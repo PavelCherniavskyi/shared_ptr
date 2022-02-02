@@ -6,33 +6,20 @@ template<typename T>
 class shared_ptr
 {
 public:
-  shared_ptr()
-    : mValue(nullptr)
-    , mCtrlBlock(nullptr)
-  {
-  }
+  shared_ptr() { init(nullptr); }
 
-  explicit shared_ptr(T* aPtr)
-    : mCtrlBlock(new control_block(1, 0))
-  {
-    mValue = aPtr;
-  }
+  explicit shared_ptr(T* aPtr) { init(aPtr); }
 
-  explicit shared_ptr(T* aPtr, std::function<void(T*)> aDeleter)
-    : mCtrlBlock(new control_block(1, 0, aDeleter))
-  {
-    mValue = aPtr;
-  }
+  explicit shared_ptr(T* aPtr, std::function<void(T*)> aDeleter) { init(aPtr, std::move(aDeleter)); }
 
   shared_ptr(const shared_ptr& aPtr) noexcept
+    : mValue(aPtr.mValue)
+    , mCtrlBlock(aPtr.mCtrlBlock)
   {
-    if (aPtr.mCtrlBlock)
+    if (mValue && aPtr.mCtrlBlock)
     {
       aPtr.mCtrlBlock->StrongRef++;
     }
-
-    mValue = aPtr.mValue;
-    mCtrlBlock = aPtr.mCtrlBlock;
   }
 
   shared_ptr& operator=(const shared_ptr<T>& aPtr) noexcept
@@ -42,18 +29,7 @@ public:
       return *this;
     }
 
-    // assuming if mValue != nullptr means that mCtrlBlock can't be nullptr as well
-    if (mValue)
-    {
-      if (mCtrlBlock->StrongRef <= 1)
-      {
-        mCtrlBlock->Deleter ? mCtrlBlock->Deleter(mValue) : delete mValue;
-      }
-      else
-      {
-        mCtrlBlock->StrongRef--;
-      }
-    }
+    customDelete();
 
     aPtr.mCtrlBlock->StrongRef++;
     mValue = aPtr.mValue;
@@ -67,14 +43,43 @@ public:
 
   ~shared_ptr()
   {
-    if (mValue)
+    customDelete();
+  }
+
+  int use_count() { return mCtrlBlock ? mCtrlBlock->StrongRef : 0; }
+
+private:
+  struct control_block
+  {
+    explicit control_block(int aStrong, int aWeek, std::function<void(T*)>&& aDel)
+      : StrongRef(aStrong)
+      , WeekRef(aWeek)
+      , Deleter(std::move(aDel))
     {
-      if (mCtrlBlock->StrongRef <= 1)
+    }
+    int StrongRef;
+    int WeekRef;
+    std::function<void(T*)> Deleter;
+  };
+
+  void customDelete()
+  {
+    if (mCtrlBlock)
+    {
+      if (mCtrlBlock->StrongRef == 1)
       {
-        mCtrlBlock->Deleter ? mCtrlBlock->Deleter(mValue) : delete mValue;
-        delete mCtrlBlock;
-        mCtrlBlock = nullptr;
+        if(mValue)
+        {
+          mCtrlBlock->Deleter ? mCtrlBlock->Deleter(mValue) : delete mValue;
+        }
+        
         mValue = nullptr;
+
+        if (mCtrlBlock->WeekRef == 0)
+        {
+          delete mCtrlBlock;
+          mCtrlBlock = nullptr;
+        }
       }
       else
       {
@@ -83,25 +88,18 @@ public:
     }
   }
 
-  int use_count() { return mCtrlBlock ? mCtrlBlock->StrongRef : 0; }
-
-private:
-  struct control_block
+  void init(T* aPtr, std::function<void(T*)>&& aDeleter = nullptr)
   {
-    explicit control_block(int aStrong, int aWeek)
-      : control_block(aStrong, aWeek, nullptr)
+    if (!aPtr)
     {
+      mValue = nullptr;
+      mCtrlBlock = nullptr;
+      return;
     }
-    explicit control_block(int aStrong, int aWeek, std::function<void(T*)> aDel)
-      : StrongRef(aStrong)
-      , WeekRef(aWeek)
-      , Deleter(aDel)
-    {
-    }
-    int StrongRef;
-    int WeekRef;
-    std::function<void(T*)> Deleter;
-  };
+
+    mValue = aPtr;
+    mCtrlBlock = new control_block(1, 0, std::move(aDeleter));
+  }
 
 private:
   T* mValue;

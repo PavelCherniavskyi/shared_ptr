@@ -19,6 +19,11 @@ using ::testing::_;
 
 TEST(SharedPtr, SharedPtrConstructorsTest)
 {
+  // nullptr in constructor
+  shared_ptr<int> nullPtr(nullptr);
+  EXPECT_FALSE(nullPtr);
+  EXPECT_EQ(nullPtr.use_count(), 0);
+
   // empty constructor
   shared_ptr<int> emptyPtr;
   EXPECT_FALSE(emptyPtr);
