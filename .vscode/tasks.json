@@ -4,13 +4,19 @@
     {
       "type": "shell",
       "label": "g++ build shared_ptr project",
-      "command": "/usr/bin/cmake --build ${workspaceFolder}/build --target all -j 12",
+      "command": "/usr/bin/cmake --build ${workspaceFolder}/build --target all -j 12 --config Debug",
       "options": {
         "cwd": "${workspaceFolder}"
       },
       "problemMatcher": [
         "$gcc"
       ],
+      "presentation": {
+        "echo": true,
+        "showReuseMessage": true,
+        "clear": true,
+        "group": "build"
+    },
       "group": {
         "kind": "build",
         "isDefault": true
