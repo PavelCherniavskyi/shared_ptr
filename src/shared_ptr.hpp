@@ -22,6 +22,8 @@ public:
     }
   }
 
+  shared_ptr(shared_ptr&& aPtr) noexcept { move(std::forward<shared_ptr>(aPtr)); }
+
   shared_ptr& operator=(const shared_ptr<T>& aPtr) noexcept
   {
     if (mCtrlBlock == aPtr.mCtrlBlock && mValue == aPtr.mValue)
@@ -37,16 +39,42 @@ public:
     return *this;
   }
 
+  shared_ptr& operator=(shared_ptr&& aPtr) noexcept
+  {
+    customDelete();
+    move(std::forward<shared_ptr>(aPtr));
+    return *this;
+  }
+
   T& operator*() const noexcept { return *mValue; }
   T* operator->() const noexcept { return mValue; }
   explicit operator bool() const noexcept { return mValue ? true : false; }
 
-  ~shared_ptr()
-  {
-    customDelete();
-  }
+  ~shared_ptr() { customDelete(); }
 
   int use_count() { return mCtrlBlock ? mCtrlBlock->StrongRef : 0; }
+
+  void reset()
+  {
+    customDelete();
+    init(nullptr);
+  }
+
+  void reset(T* aPtr)
+  {
+    customDelete();
+    init(aPtr);
+  }
+
+  void reset(T* aPtr, std::function<void(T*)> aDeleter)
+  {
+    customDelete();
+    init(aPtr, std::move(aDeleter));
+  }
+
+  void swap(shared_ptr& aPtr) noexcept { std::swap(*this, aPtr); }
+
+  T* get() const noexcept { return mValue; }
 
 private:
   struct control_block
@@ -68,11 +96,11 @@ private:
     {
       if (mCtrlBlock->StrongRef == 1)
       {
-        if(mValue)
+        if (mValue)
         {
           mCtrlBlock->Deleter ? mCtrlBlock->Deleter(mValue) : delete mValue;
         }
-        
+
         mValue = nullptr;
 
         if (mCtrlBlock->WeekRef == 0)
@@ -99,6 +127,14 @@ private:
 
     mValue = aPtr;
     mCtrlBlock = new control_block(1, 0, std::move(aDeleter));
+  }
+
+  void move(shared_ptr&& aPtr)
+  {
+    mValue = aPtr.mValue;
+    mCtrlBlock = aPtr.mCtrlBlock;
+    aPtr.mValue = nullptr;
+    aPtr.mCtrlBlock = nullptr;
   }
 
 private:
