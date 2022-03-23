@@ -57,7 +57,6 @@ public:
   void reset()
   {
     customDelete();
-    init(nullptr);
   }
 
   void reset(T* aPtr)
@@ -81,12 +80,12 @@ private:
   {
     explicit control_block(int aStrong, int aWeek, std::function<void(T*)>&& aDel)
       : StrongRef(aStrong)
-      , WeekRef(aWeek)
+      , WeakRef(aWeek)
       , Deleter(std::move(aDel))
     {
     }
     int StrongRef;
-    int WeekRef;
+    int WeakRef;
     std::function<void(T*)> Deleter;
   };
 
@@ -103,7 +102,8 @@ private:
 
         mValue = nullptr;
 
-        if (mCtrlBlock->WeekRef == 0)
+        //keep ctrlBlock for weak reference even if value is deleted
+        if (mCtrlBlock->WeakRef == 0)
         {
           delete mCtrlBlock;
           mCtrlBlock = nullptr;

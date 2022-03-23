@@ -30,7 +30,7 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
 
   // pointer constructor
   shared_ptr<int> oneParamPtr(new int(5));
-  EXPECT_TRUE(oneParamPtr);
+  ASSERT_TRUE(oneParamPtr);
   EXPECT_EQ(*oneParamPtr, 5);
   EXPECT_EQ(oneParamPtr.use_count(), 1);
   
@@ -38,7 +38,7 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
   {
     DeleterMock deleteMock;
     shared_ptr<int> withDeleter(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
-    EXPECT_TRUE(withDeleter);
+    ASSERT_TRUE(withDeleter);
     EXPECT_EQ(*withDeleter, 5);
     EXPECT_EQ(withDeleter.use_count(), 1);
     EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
@@ -57,7 +57,7 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
   shared_ptr<int> movePtr(std::move(originMove));
   EXPECT_FALSE(originMove);
   EXPECT_EQ(originMove.use_count(), 0);
-  EXPECT_TRUE(movePtr);
+  ASSERT_TRUE(movePtr);
   EXPECT_EQ(*movePtr, 5);
   EXPECT_EQ(movePtr.use_count(), 1);
 
@@ -113,7 +113,7 @@ TEST(SharedPtr, BoolOperator)
 {
   shared_ptr<int> hasValue(new int(5));
   shared_ptr<int> empty;
-  EXPECT_TRUE(hasValue);
+  ASSERT_TRUE(hasValue);
   EXPECT_FALSE(empty);
 }
 
@@ -227,10 +227,40 @@ TEST(SharedPtr, Swap)
   EXPECT_EQ(copy.use_count(), 1);
   EXPECT_EQ(*origin, 10);
   EXPECT_EQ(*copy, 5);
+
+  shared_ptr<int> copyEmpty;
+  EXPECT_EQ(copyEmpty.use_count(), 0);
+  EXPECT_FALSE(copyEmpty);
+  EXPECT_EQ(copyEmpty.get(), nullptr);
+
+  origin.swap(copyEmpty);
+
+  EXPECT_EQ(origin.use_count(), 0);
+  EXPECT_FALSE(origin);
+  EXPECT_EQ(origin.get(), nullptr);
+
+  EXPECT_EQ(copyEmpty.use_count(), 1);
+  ASSERT_TRUE(copyEmpty);
+  EXPECT_EQ(*copyEmpty, 10);
+
 }
 
 TEST(SharedPtr, MoveAssignOperator)
 {
+  //count strong ref == 0
+  {
+    shared_ptr<int> originMove;
+    shared_ptr<int> movePtr(new int(5));
+    movePtr = std::move(originMove);
+
+    EXPECT_FALSE(originMove);
+    EXPECT_EQ(originMove.use_count(), 0);
+    EXPECT_EQ(originMove.get(), nullptr);
+    EXPECT_FALSE(movePtr);
+    EXPECT_EQ(movePtr.use_count(), 0);
+    EXPECT_EQ(movePtr.get(), nullptr);
+  }
+
   //count strong ref == 1
   {
     shared_ptr<int> originMove(new int(5));
@@ -239,11 +269,10 @@ TEST(SharedPtr, MoveAssignOperator)
 
     EXPECT_FALSE(originMove);
     EXPECT_EQ(originMove.use_count(), 0);
-    EXPECT_TRUE(movePtr);
+    ASSERT_TRUE(movePtr);
     EXPECT_EQ(*movePtr, 5);
     EXPECT_EQ(movePtr.use_count(), 1);
   }
-  
 
   //count strong ref > 1
   {
@@ -257,10 +286,10 @@ TEST(SharedPtr, MoveAssignOperator)
 
     EXPECT_FALSE(originMove);
     EXPECT_EQ(originMove.use_count(), 0);
-    EXPECT_TRUE(movePtr);
+    ASSERT_TRUE(movePtr);
     EXPECT_EQ(*movePtr, 5);
     EXPECT_EQ(movePtr.use_count(), 1);
-    EXPECT_TRUE(copy);
+    ASSERT_TRUE(copy);
     EXPECT_EQ(*copy, 10);
     EXPECT_EQ(copy.use_count(), 1);
   }
