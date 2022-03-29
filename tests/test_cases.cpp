@@ -30,7 +30,7 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
 
   // pointer constructor
   shared_ptr<int> oneParamPtr(new int(5));
-  EXPECT_TRUE(oneParamPtr);
+  ASSERT_TRUE(oneParamPtr);
   EXPECT_EQ(*oneParamPtr, 5);
   EXPECT_EQ(oneParamPtr.use_count(), 1);
   
@@ -38,7 +38,7 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
   {
     DeleterMock deleteMock;
     shared_ptr<int> withDeleter(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
-    EXPECT_TRUE(withDeleter);
+    ASSERT_TRUE(withDeleter);
     EXPECT_EQ(*withDeleter, 5);
     EXPECT_EQ(withDeleter.use_count(), 1);
     EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
@@ -51,6 +51,15 @@ TEST(SharedPtr, SharedPtrConstructorsTest)
   EXPECT_EQ(*copy, 7);
   EXPECT_EQ(origin.use_count(), 2);
   EXPECT_EQ(copy.use_count(), 2);
+
+  //move constructor
+  shared_ptr<int> originMove(new int(5));
+  shared_ptr<int> movePtr(std::move(originMove));
+  EXPECT_FALSE(originMove);
+  EXPECT_EQ(originMove.use_count(), 0);
+  ASSERT_TRUE(movePtr);
+  EXPECT_EQ(*movePtr, 5);
+  EXPECT_EQ(movePtr.use_count(), 1);
 
 }
 
@@ -104,7 +113,7 @@ TEST(SharedPtr, BoolOperator)
 {
   shared_ptr<int> hasValue(new int(5));
   shared_ptr<int> empty;
-  EXPECT_TRUE(hasValue);
+  ASSERT_TRUE(hasValue);
   EXPECT_FALSE(empty);
 }
 
@@ -119,4 +128,177 @@ TEST(SharedPtr, UseCount)
   }
 
   EXPECT_EQ(origin.use_count(), 1);
+}
+
+TEST(SharedPtr, Reset)
+{
+  //with no arg
+  {
+    DeleterMock deleteMock;
+    shared_ptr<int> shrd_ptr(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
+    EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
+    shrd_ptr.reset();
+    EXPECT_EQ(shrd_ptr.use_count(), 0);
+    EXPECT_FALSE(shrd_ptr);
+  }
+
+  //with one arg
+  {
+    DeleterMock deleteMock;
+    shared_ptr<int> shrd_ptr(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
+    EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
+    shrd_ptr.reset(new int(10));
+    EXPECT_EQ(shrd_ptr.use_count(), 1);
+    EXPECT_EQ(*shrd_ptr, 10);
+  }
+
+  //with deleter
+  DeleterMock deleteMockMainCheck;
+  EXPECT_CALL(deleteMockMainCheck, Deleter(_)).Times(1);
+  {
+    DeleterMock deleteMock;
+    shared_ptr<int> shrd_ptr(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
+    EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
+    shrd_ptr.reset(new int(10), [&deleteMockMainCheck](auto* aPtr){ deleteMockMainCheck.Deleter(aPtr); });
+    EXPECT_EQ(shrd_ptr.use_count(), 1);
+    EXPECT_EQ(*shrd_ptr, 10);
+  }
+
+  //shared_ptr count is > 1 with no arg
+  {
+    shared_ptr<int> origin(new int(5));
+    shared_ptr<int> copy(origin);
+    EXPECT_EQ(origin.use_count(), 2);
+    EXPECT_EQ(copy.use_count(), 2);
+    
+    origin.reset();
+        
+    EXPECT_EQ(origin.use_count(), 0);
+    EXPECT_EQ(copy.use_count(), 1);
+    EXPECT_FALSE(origin);
+    EXPECT_EQ(*copy, 5);
+  }
+
+  //shared_ptr count is > 1 with one arg
+  {
+    shared_ptr<int> origin(new int(5));
+    shared_ptr<int> copy(origin);
+    EXPECT_EQ(origin.use_count(), 2);
+    EXPECT_EQ(copy.use_count(), 2);
+    
+    origin.reset(new int(10));
+        
+    EXPECT_EQ(origin.use_count(), 1);
+    EXPECT_EQ(copy.use_count(), 1);
+    EXPECT_EQ(*origin, 10);
+    EXPECT_EQ(*copy, 5);
+  }
+
+  //shared_ptr count is > 1 with deleter
+  DeleterMock deleteMockMainCheck2;
+  EXPECT_CALL(deleteMockMainCheck2, Deleter(_)).Times(1);
+  {
+    DeleterMock deleteMock;
+    shared_ptr<int> origin(new int(5), [&deleteMock](auto* aPtr){ deleteMock.Deleter(aPtr); });
+    shared_ptr<int> copy(origin);
+    EXPECT_EQ(origin.use_count(), 2);
+    EXPECT_EQ(copy.use_count(), 2);
+    
+    EXPECT_CALL(deleteMock, Deleter(_)).Times(0);
+    origin.reset(new int(10), [&deleteMockMainCheck2](auto* aPtr){ deleteMockMainCheck2.Deleter(aPtr); });
+        
+    EXPECT_EQ(origin.use_count(), 1);
+    EXPECT_EQ(copy.use_count(), 1);
+    EXPECT_EQ(*origin, 10);
+    EXPECT_EQ(*copy, 5);
+    EXPECT_CALL(deleteMock, Deleter(_)).Times(1);
+  }
+
+}
+
+TEST(SharedPtr, Swap)
+{
+  shared_ptr<int> origin(new int(5));
+  shared_ptr<int> copy(new int(10));
+
+  origin.swap(copy);
+
+  EXPECT_EQ(origin.use_count(), 1);
+  EXPECT_EQ(copy.use_count(), 1);
+  EXPECT_EQ(*origin, 10);
+  EXPECT_EQ(*copy, 5);
+
+  shared_ptr<int> copyEmpty;
+  EXPECT_EQ(copyEmpty.use_count(), 0);
+  EXPECT_FALSE(copyEmpty);
+  EXPECT_EQ(copyEmpty.get(), nullptr);
+
+  origin.swap(copyEmpty);
+
+  EXPECT_EQ(origin.use_count(), 0);
+  EXPECT_FALSE(origin);
+  EXPECT_EQ(origin.get(), nullptr);
+
+  EXPECT_EQ(copyEmpty.use_count(), 1);
+  ASSERT_TRUE(copyEmpty);
+  EXPECT_EQ(*copyEmpty, 10);
+
+}
+
+TEST(SharedPtr, MoveAssignOperator)
+{
+  //count strong ref == 0
+  {
+    shared_ptr<int> originMove;
+    shared_ptr<int> movePtr(new int(5));
+    movePtr = std::move(originMove);
+
+    EXPECT_FALSE(originMove);
+    EXPECT_EQ(originMove.use_count(), 0);
+    EXPECT_EQ(originMove.get(), nullptr);
+    EXPECT_FALSE(movePtr);
+    EXPECT_EQ(movePtr.use_count(), 0);
+    EXPECT_EQ(movePtr.get(), nullptr);
+  }
+
+  //count strong ref == 1
+  {
+    shared_ptr<int> originMove(new int(5));
+    shared_ptr<int> movePtr(new int(10));
+    movePtr = std::move(originMove);
+
+    EXPECT_FALSE(originMove);
+    EXPECT_EQ(originMove.use_count(), 0);
+    ASSERT_TRUE(movePtr);
+    EXPECT_EQ(*movePtr, 5);
+    EXPECT_EQ(movePtr.use_count(), 1);
+  }
+
+  //count strong ref > 1
+  {
+    shared_ptr<int> originMove(new int(5));
+    shared_ptr<int> movePtr(new int(10));
+    shared_ptr<int> copy(movePtr);
+    EXPECT_EQ(copy.use_count(), 2);
+    EXPECT_EQ(movePtr.use_count(), 2);
+    
+    movePtr = std::move(originMove);
+
+    EXPECT_FALSE(originMove);
+    EXPECT_EQ(originMove.use_count(), 0);
+    ASSERT_TRUE(movePtr);
+    EXPECT_EQ(*movePtr, 5);
+    EXPECT_EQ(movePtr.use_count(), 1);
+    ASSERT_TRUE(copy);
+    EXPECT_EQ(*copy, 10);
+    EXPECT_EQ(copy.use_count(), 1);
+  }
+}
+
+TEST(SharedPtr, Get)
+{
+  shared_ptr<int> ptr(new int(5));
+  EXPECT_EQ(*ptr.get(), 5);
+  ptr.reset();
+  EXPECT_EQ(ptr.get(), nullptr);
 }
